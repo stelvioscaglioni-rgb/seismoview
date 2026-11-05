@@ -59,26 +59,31 @@
         const now = new Date();
         const past = new Date(now.getTime() - (72 * 60 * 60 * 1000));
         const startTimeIso = past.toISOString();
-        
-        // Formato data semplice YYYY-MM-DD per l'INGV
         const startDateOnly = past.toISOString().split('T')[0];
     
         const usgsUrl = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${startTimeIso}&minlatitude=34.0&maxlatitude=72.0&minlongitude=-25.0&maxlongitude=45.0&minmagnitude=2.0`;
         const ingvUrl = `https://webservices.ingv.it/fdsnws/event/1/query?format=geojson&starttime=${startDateOnly}&minmagnitude=2.0`;
         
-        // Carichiamo prima l'USGS e in parallelo l'INGV gestendo eventuali errori singoli
         Promise.allSettled([
             fetch(usgsUrl).then(res => res.json()),
             fetch(ingvUrl).then(res => res.json())
         ])
         .then(([usgsResult, ingvResult]) => {
+            console.log("Esito USGS:", usgsResult);
+            console.log("Esito INGV:", ingvResult);
+
             let allFeatures = [];
     
             if (usgsResult.status === 'fulfilled' && usgsResult.value.features) {
                 allFeatures = allFeatures.concat(usgsResult.value.features);
+            } else {
+                console.warn("USGS fallito:", usgsResult.reason);
             }
+
             if (ingvResult.status === 'fulfilled' && ingvResult.value.features) {
                 allFeatures = allFeatures.concat(ingvResult.value.features);
+            } else {
+                console.warn("INGV fallito o bloccato:", ingvResult.reason);
             }
     
             if (allFeatures.length === 0) {
