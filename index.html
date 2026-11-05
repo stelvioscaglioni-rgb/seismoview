@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeismoView Europa</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e222d; color: #f3f4f6; display: flex; height: 100vh; overflow: hidden; }
+        
+        #sidebar { width: 380px; background-color: #1e222d; display: flex; flex-direction: column; border-right: 1px solid #2d3748; z-index: 1000; }
+        #map { flex-grow: 1; height: 100%; background-color: #1a1a1a; }
+        
+        .header { padding: 15px; border-bottom: 1px solid #2d3748; }
+        .header h2 { margin: 0 0 5px 0; font-size: 18px; color: #ffffff; }
+        .header p { margin: 0; font-size: 12px; color: #9ca3af; }
+        
+        #event-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
+        .event-item { background-color: #2a2f3d; border: 1px solid #374151; border-radius: 6px; padding: 10px; margin: 8px; cursor: pointer; transition: background 0.2s; }
+        .event-item:hover { background-color: #374151; }
+        .event-title { font-size: 13px; font-weight: bold; margin-bottom: 4px; }
+        .event-details { font-size: 11px; color: #9ca3af; }
+
+        .leaflet-popup-content-wrapper { background: #1f2937; color: #f3f4f6; border-radius: 8px; }
+        .leaflet-popup-tip { background: #1f2937; }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar { width: 100%; height: 40vh; }
+            #map { height: 60vh; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="header">
+            <h2>Terremoti in Europa</h2>
+            <p id="counter">Caricamento dati ultime 72 ore...</p>
+        </div>
+        <ul id="event-list"></ul>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([48.0, 15.0], 4);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        var markers = {};
+
+        function loadEarthquakes() {
+            const now = new Date();
+            const past = new Date(now.getTime() - (72 * 60 * 60 * 1000));
+            const startTime = past.toISOString();
+
+            const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${startTime}&minlatitude=34.0&maxlatitude=72.0&minlongitude=-25.0&maxlongitude=45.0&minmagnitude=2.0&orderby=time-asc`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const features = data.features.reverse();
+                    document.getElementById('counter').innerText = `Eventi trovati: ${features.length}`;
+                    
+                    const listContainer = document.getElementById('event-list');
+                    listContainer.innerHTML = '';
+
+                    features.forEach(feature => {
+                        const props = feature.properties;
+                        const coords = feature.geometry.coordinates;
+                        const mag = props.mag.toFixed(1);
+                        const place = props.place || 'Località non specificata';
+                        const depth = coords[2].toFixed(1);
+                        const date = new Date(props.time).toLocaleString('it-IT');
+                        const id = feature.id;
+
+                        const color = mag < 3.0 ? '#22c55e' : (mag < 4.5 ? '#eab308' : '#ef4444');
+                        const radius = Math.max(mag * 3, 5);
+
+                        var circle = L.circleMarker([coords[1], coords[0]], {
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: 0.7,
+                            radius: radius,
+                            weight: 1.5
+                        }).addTo(map);
+
+                        var popupContent = `
+                            <div style="font-family: sans-serif;">
+                                <h4 style="margin:0 0 5px 0; color:${color};">Magnitudo: ${mag}</h4>
+                                <b>Località:</b> ${place}<br>
+                                <b>Profondità:</b> ${depth} km<br>
+                                <b>Data/Ora:</b> ${date}
+                            </div>
+                        `;
+                        circle.bindPopup(popupContent);
+                        markers[id] = { circle: circle, lat: coords[1], lon: coords[0] };
+
+                        const li = document.createElement('li');
+                        li.className = 'event-item';
+                        li.innerHTML = `
+                            <div class="event-title" style="color: ${color};">Magnitudo ${mag} — ${place}</div>
+                            <div class="event-details">Profondità: ${depth} km • ${date}</div>
+                        `;
+                        li.onclick = function() {
+                            map.setView([coords[1], coords[0]], 7, { animate: true });
+                            circle.openPopup();
+                        };
+                        listContainer.appendChild(li);
+                    });
+                })
+                .catch(err => {
+                    console.error('Errore caricamento dati:', err);
+                    document.getElementById('counter').innerText = 'Errore di connessione ai dati sismici.';
+                });
+        }
+
+        loadEarthquakes();
+    </script>
+</body>
+</html>
