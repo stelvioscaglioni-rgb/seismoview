@@ -60,8 +60,10 @@
         const past = new Date(now.getTime() - (72 * 60 * 60 * 1000));
         const startTime = past.toISOString();
     
-        const usgsUrl = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${startTime}&minlatitude=34.0&maxlatitude=72.0&minlongitude=-25.0&maxlongitude=45.0&minmagnitude=2.0&orderby=time-asc`;
-        const ingvUrl = `https://webservices.ingv.it/fdsnws/event/1/query?format=geojson&starttime=${startTime}&minlatitude=35.0&maxlatitude=48.0&minlongitude=6.0&maxlongitude=19.0&minmagnitude=2.0`;
+       const usgsUrl = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${startTime}&minlatitude=34.0&maxlatitude=72.0&minlongitude=-25.0&maxlongitude=45.0&minmagnitude=2.0&orderby=time-asc`;
+    
+    // URL INGV semplificato (restituisce gli eventi recenti senza filtri geografici rigidi che potrebbero bloccare la risposta)
+    const ingvUrl = `https://webservices.ingv.it/fdsnws/event/1/query?format=geojson&starttime=${startTime}&minmagnitude=2.0`;
     
         // Carichiamo prima l'USGS e in parallelo l'INGV gestendo eventuali errori singoli
         Promise.allSettled([
