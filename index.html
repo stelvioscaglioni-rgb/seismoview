@@ -59,30 +59,36 @@
         const now = new Date();
         const past = new Date(now.getTime() - (72 * 60 * 60 * 1000));
         const startTime = past.toISOString();
-
-        // 1. URL USGS per l'Europa
+    
         const usgsUrl = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${startTime}&minlatitude=34.0&maxlatitude=72.0&minlongitude=-25.0&maxlongitude=45.0&minmagnitude=2.0&orderby=time-asc`;
-
-        // 2. URL INGV focalizzato sull'area italiana/mediterranea
         const ingvUrl = `https://webservices.ingv.it/fdsnws/event/1/query?format=geojson&starttime=${startTime}&minlatitude=35.0&maxlatitude=48.0&minlongitude=6.0&maxlongitude=19.0&minmagnitude=2.0`;
-
-        // Eseguiamo entrambe le richieste insieme
-        Promise.all([
+    
+        // Carichiamo prima l'USGS e in parallelo l'INGV gestendo eventuali errori singoli
+        Promise.allSettled([
             fetch(usgsUrl).then(res => res.json()),
             fetch(ingvUrl).then(res => res.json())
         ])
-        .then(([usgsData, ingvData]) => {
-            // Uniamo le due liste di eventi (features)
-            let allFeatures = [...usgsData.features, ...ingvData.features];
-
-            // Opzionale: ordinamento temporale dal più recente al meno recente
+        .then(([usgsResult, ingvResult]) => {
+            let allFeatures = [];
+    
+            if (usgsResult.status === 'fulfilled' && usgsResult.value.features) {
+                allFeatures = allFeatures.concat(usgsResult.value.features);
+            }
+            if (ingvResult.status === 'fulfilled' && ingvResult.value.features) {
+                allFeatures = allFeatures.concat(ingvResult.value.features);
+            }
+    
+            if (allFeatures.length === 0) {
+                document.getElementById('counter').innerText = 'Nessun evento sismico trovato.';
+                return;
+            }
+    
             allFeatures.sort((a, b) => b.properties.time - a.properties.time);
-
             document.getElementById('counter').innerText = `Eventi totali trovati: ${allFeatures.length}`;
             
             const listContainer = document.getElementById('event-list');
             listContainer.innerHTML = '';
-
+    
             allFeatures.forEach(feature => {
                 const props = feature.properties;
                 const coords = feature.geometry.coordinates;
@@ -91,10 +97,10 @@
                 const depth = coords[2].toFixed(1);
                 const date = new Date(props.time).toLocaleString('it-IT');
                 const id = feature.id || Math.random();
-
+    
                 const color = mag < 3.0 ? '#22c55e' : (mag < 4.5 ? '#eab308' : '#ef4444');
                 const radius = Math.max(mag * 3, 5);
-
+    
                 var circle = L.circleMarker([coords[1], coords[0]], {
                     color: color,
                     fillColor: color,
@@ -102,7 +108,7 @@
                     radius: radius,
                     weight: 1.5
                 }).addTo(map);
-
+    
                 var popupContent = `
                     <div style="font-family: sans-serif;">
                         <h4 style="margin:0 0 5px 0; color:${color};">Magnitudo: ${mag}</h4>
@@ -113,7 +119,7 @@
                 `;
                 circle.bindPopup(popupContent);
                 markers[id] = { circle: circle, lat: coords[1], lon: coords[0] };
-
+    
                 const li = document.createElement('li');
                 li.className = 'event-item';
                 li.innerHTML = `
@@ -128,10 +134,10 @@
             });
         })
         .catch(err => {
-            console.error('Errore caricamento dati multipli:', err);
+            console.error('Errore critico di rete:', err);
             document.getElementById('counter').innerText = 'Errore di connessione ai dati sismici.';
         });
-    }
+}
 
     loadEarthquakes();
     </script>
