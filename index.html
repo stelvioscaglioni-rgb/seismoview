@@ -62,8 +62,8 @@
     
        const usgsUrl = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${startTime}&minlatitude=34.0&maxlatitude=72.0&minlongitude=-25.0&maxlongitude=45.0&minmagnitude=2.0&orderby=time-asc`;
     
-    // URL INGV semplificato (restituisce gli eventi recenti senza filtri geografici rigidi che potrebbero bloccare la risposta)
-    const ingvUrl = `https://webservices.ingv.it/fdsnws/event/1/query?format=geojson&starttime=${startTime}&minmagnitude=2.0`;
+        // URL INGV semplificato (restituisce gli eventi recenti senza filtri geografici rigidi che potrebbero bloccare la risposta)
+        const ingvUrl = `https://webservices.ingv.it/fdsnws/event/1/query?format=geojson&starttime=${startTime}&minmagnitude=2.0`;
     
         // Carichiamo prima l'USGS e in parallelo l'INGV gestendo eventuali errori singoli
         Promise.allSettled([
